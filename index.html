@@ -90,7 +90,7 @@
   }
 
   .btn-del {
-    background: transparent;
+    background: transparent;fillFullRandomModal
     color: #ff5555;
     border: none;
     font-weight: bold;
@@ -251,7 +251,7 @@
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
         <h3 id="modalTitle" style="margin:0;">オーダー設定 (16枠)</h3>
-        <button class="btn btn-purple" onclick="fillFullRandomModal()">🎲 プレイヤー・キャラ・順番を完全全ランダム設定</button>
+        <button class="btn btn-purple" onclick="fillFullRandomModal()">🎲 プレイヤー・16キャラ全員を全ランダム設定</button>
       </div>
       <div id="modalOrderRows"></div>
       <br>
@@ -432,14 +432,14 @@ function renderModalRows(members, orders) {
   });
 }
 
-// 🎲 完全全ランダム自動割り当て機能
+// 🎲 プレイヤー・16キャラ全員を全ランダム自動割り当て機能（キャラ全重複なし）
 function fillFullRandomModal() {
   const members = (currentModalTeam === '1') ? appState.team1Members : appState.team2Members;
   if (!members || members.length === 0) return;
 
   const rows = document.querySelectorAll("#modalOrderRows .order-row");
   
-  // 16枠分のプレイヤー配列を自動生成（足りない場合は重複で埋める）
+  // 16枠分のプレイヤー配列（足りない場合は重複して埋める）
   let playerPool = [];
   while (playerPool.length < 16) {
     let shuffledMembers = [...members].sort(() => Math.random() - 0.5);
@@ -447,16 +447,18 @@ function fillFullRandomModal() {
   }
   playerPool = playerPool.slice(0, 16);
 
+  // 全16キャラをシャッフル（重複なしで16キャラ全員を出す）
+  let charPool = [...allCharacters].sort(() => Math.random() - 0.5);
+
   rows.forEach((row, idx) => {
     const nameSelect = row.querySelector(".m-name");
     const charSelect = row.querySelector(".m-char");
 
-    // プレイヤーをランダム選択
+    // プレイヤー割り当て
     nameSelect.value = playerPool[idx];
 
-    // キャラクターを全16キャラからランダム選択
-    const randomChar = allCharacters[Math.floor(Math.random() * allCharacters.length)];
-    charSelect.value = randomChar.id;
+    // キャラクター割り当て（重複なし16キャラ）
+    charSelect.value = charPool[idx].id;
   });
 }
 
