@@ -144,6 +144,10 @@
     background: #000; 
     flex-shrink: 0;
   }
+  /* 2P側の顔画像を自動で左右反転するスタイル */
+  .p2-face {
+    transform: scaleX(-1);
+  }
   .char-face.load-error { display: none; }
 
   .player-info { flex: 1; overflow: hidden; min-width: 0; }
@@ -271,7 +275,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const baseChars = ["リュウ","ケン","本田","春麗","ブランカ","ザンギエフ","ガイル","ダルシム","ホーク","フェイロン","キャミィ","ディージェイ","バイソン","バルログ","サガット","ベガ"];
+// キャラ順を変更（フェイロンとキャミィを実際の選択画面並びに合わせて入れ替え）
+const baseChars = ["リュウ","ケン","本田","春麗","ブランカ","ザンギエフ","ガイル","ダルシム","ホーク","キャミィ","フェイロン","ディージェイ","バイソン","バルログ","サガット","ベガ"];
 const allCharacters = baseChars.map((name, i) => ({
   id: `x_${i}`, name: `X ${name}`, icon: `image/x_${i}.png`
 }));
@@ -495,6 +500,9 @@ function renderTeamDisplay(teamKey, members, orders) {
     return;
   }
 
+  // 2Pチームの場合は反転用クラスを追加
+  const faceClass = (teamKey === '2') ? "char-face p2-face" : "char-face";
+
   if (!appState.isOrderSet) {
     if (members) {
       members.forEach((name, idx) => {
@@ -514,7 +522,7 @@ function renderTeamDisplay(teamKey, members, orders) {
         if (slot.revealed) {
           card.innerHTML = `
             <span class="order-num">${idx + 1}.</span>
-            <img class="char-face" src="${charInfo.icon}" onerror="handleImgError(this)">
+            <img class="${faceClass}" src="${charInfo.icon}" onerror="handleImgError(this)">
             <div class="player-info">
               <div class="player-name" title="${escapeHTML(slot.name)}">${slot.name ? escapeHTML(slot.name) : '未設定'}</div>
               <div class="char-name">${charInfo.name}</div>
@@ -523,7 +531,7 @@ function renderTeamDisplay(teamKey, members, orders) {
         } else {
           card.innerHTML = `
             <span class="order-num">${idx + 1}.</span>
-            <img class="char-face" src="image/secret.png" onerror="handleImgError(this)">
+            <img class="${faceClass}" src="image/secret.png" onerror="handleImgError(this)">
             <div class="player-info">
               <div class="player-name">？？？</div>
               <div class="char-name">（伏せ）</div>
