@@ -57,6 +57,8 @@
   .btn-danger { background: #d90429; }
   .btn-success { background: #38b000; }
   .btn-warning { background: #ff9f1c; color: #000; }
+  .btn-purple { background: #8338ec; color: #fff; }
+  .btn-purple:hover { background: #6c11d9; }
 
   .mode-select {
     background: #111118;
@@ -144,7 +146,6 @@
     background: #000; 
     flex-shrink: 0;
   }
-  /* 2P側の顔画像を自動で左右反転するスタイル */
   .p2-face {
     transform: scaleX(-1);
   }
@@ -248,13 +249,14 @@
 
   <div id="orderModal" class="modal">
     <div class="modal-content">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
         <h3 id="modalTitle" style="margin:0;">オーダー設定 (16枠)</h3>
-        <button class="btn btn-warning" onclick="saveAndShuffleModal()">🔀 完了して裏でランダムシャッフル</button>
+        <button class="btn btn-purple" onclick="fillFullRandomModal()">🎲 プレイヤー・キャラ・順番を完全全ランダム設定</button>
       </div>
       <div id="modalOrderRows"></div>
       <br>
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+        <button class="btn btn-warning" onclick="saveAndShuffleModal()">🔀 完了して裏でランダムシャッフル</button>
         <button class="btn btn-success" onclick="saveOrderModal()">そのまま設定完了</button>
         <button class="btn btn-danger" onclick="closeOrderModal()">キャンセル</button>
       </div>
@@ -275,7 +277,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// キャラ順を変更（フェイロンとキャミィを実際の選択画面並びに合わせて入れ替え）
 const baseChars = ["リュウ","ケン","本田","春麗","ブランカ","ザンギエフ","ガイル","ダルシム","ホーク","キャミィ","フェイロン","ディージェイ","バイソン","バルログ","サガット","ベガ"];
 const allCharacters = baseChars.map((name, i) => ({
   id: `x_${i}`, name: `X ${name}`, icon: `image/x_${i}.png`
@@ -431,6 +432,34 @@ function renderModalRows(members, orders) {
   });
 }
 
+// 🎲 完全全ランダム自動割り当て機能
+function fillFullRandomModal() {
+  const members = (currentModalTeam === '1') ? appState.team1Members : appState.team2Members;
+  if (!members || members.length === 0) return;
+
+  const rows = document.querySelectorAll("#modalOrderRows .order-row");
+  
+  // 16枠分のプレイヤー配列を自動生成（足りない場合は重複で埋める）
+  let playerPool = [];
+  while (playerPool.length < 16) {
+    let shuffledMembers = [...members].sort(() => Math.random() - 0.5);
+    playerPool = playerPool.concat(shuffledMembers);
+  }
+  playerPool = playerPool.slice(0, 16);
+
+  rows.forEach((row, idx) => {
+    const nameSelect = row.querySelector(".m-name");
+    const charSelect = row.querySelector(".m-char");
+
+    // プレイヤーをランダム選択
+    nameSelect.value = playerPool[idx];
+
+    // キャラクターを全16キャラからランダム選択
+    const randomChar = allCharacters[Math.floor(Math.random() * allCharacters.length)];
+    charSelect.value = randomChar.id;
+  });
+}
+
 function saveAndShuffleModal() {
   const mode = document.querySelector('input[name="orderMode"]:checked').value;
   const orders = (currentModalTeam === '1') ? appState.team1Orders : appState.team2Orders;
@@ -500,7 +529,6 @@ function renderTeamDisplay(teamKey, members, orders) {
     return;
   }
 
-  // 2Pチームの場合は反転用クラスを追加
   const faceClass = (teamKey === '2') ? "char-face p2-face" : "char-face";
 
   if (!appState.isOrderSet) {
