@@ -7,6 +7,8 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<!-- HTML5 Drag and Drop サポート用ライブラリ (SortableJS) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <style>
   :root {
     --bg-color: #0f0f13;
@@ -173,6 +175,7 @@
   .is-hidden .player-name { color: #666; }
   .is-hidden .char-name { color: #444; }
 
+  /* モーダル＆ドラッグ行スタイル */
   .modal {
     display: none;
     position: fixed;
@@ -194,9 +197,67 @@
 
   .order-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
     margin-bottom: 6px;
+    background: #20202d;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #333;
+  }
+
+  .drag-handle {
+    cursor: grab;
+    color: #888;
+    font-size: 1.2em;
+    padding: 0 4px;
+    user-select: none;
+  }
+  .drag-handle:active { cursor: grabbing; }
+
+  /* キャラ選択ボタン＆ポップアップUI */
+  .char-picker-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #101015;
+    border: 1px solid #444;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    min-width: 140px;
+  }
+  .char-picker-btn:hover { background: #2a2a38; }
+
+  .char-palette {
+    display: none;
+    position: absolute;
+    background: #15151f;
+    border: 2px solid #3a86ff;
+    border-radius: 8px;
+    padding: 8px;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    z-index: 200;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+  }
+  .char-palette-item {
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    padding: 2px;
+    text-align: center;
+  }
+  .char-palette-item:hover {
+    border-color: #ff9f1c;
+    background: #333348;
+  }
+  .char-palette-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    display: block;
+    border-radius: 3px;
   }
 </style>
 </head>
@@ -245,7 +306,7 @@
     </details>
   </div>
 
-  <!-- 4列レイアウト（①1P待機 / ②1P対戦 / ③2P対戦 / ④2P待機） -->
+  <!-- 4列レイアウト -->
   <div class="obs-display">
     <div class="team-column">
       <div class="team-title bench-header">1P 待機 (ベンチ)</div>
@@ -268,6 +329,7 @@
     </div>
   </div>
 
+  <!-- オーダー設定モーダル -->
   <div id="orderModal" class="modal">
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
@@ -283,6 +345,9 @@
       </div>
     </div>
   </div>
+
+  <!-- キャラ選択 8x2 パレット (ポップアップ用) -->
+  <div id="charPalette" class="char-palette"></div>
 
 <script>
 // --- Firebase初期設定 ---
@@ -314,8 +379,12 @@ let appState = {
 
 let currentRole = 'pc_all';
 let currentModalTeam = '1';
+let sortableInstance = null;
+let activeCharTargetInput = null;
 
 window.onload = function() {
+  initCharPalette();
+  
   db.ref('sf2x_state').on('value', (snapshot) => {
     const data = snapshot.val();
     if (data) {
@@ -332,10 +401,56 @@ window.onload = function() {
       syncToFirebase();
     }
   });
+
+  // パレット外クリックで閉じる
+  document.addEventListener('click', (e) => {
+    const palette = document.getElementById('charPalette');
+    if (!e.target.closest('.char-picker-btn') && !e.target.closest('#charPalette')) {
+      palette.style.display = 'none';
+    }
+  });
 };
 
 function syncToFirebase() {
   db.ref('sf2x_state').set(appState);
+}
+
+// 8x2 キャラパレットの生成
+function initCharPalette() {
+  const palette = document.getElementById('charPalette');
+  palette.innerHTML = '';
+  allCharacters.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'char-palette-item';
+    item.title = c.name;
+    item.innerHTML = `<img src="${c.icon}" onerror="this.src=''"><span style="font-size:0.65em;">${c.name.replace('X ','')}</span>`;
+    item.onclick = () => selectCharFromPalette(c.id);
+    palette.appendChild(item);
+  });
+}
+
+function openCharPalette(e, hiddenInputId) {
+  e.stopPropagation();
+  activeCharTargetInput = document.getElementById(hiddenInputId);
+  const btn = e.currentTarget;
+  const palette = document.getElementById('charPalette');
+  
+  const rect = btn.getBoundingClientRect();
+  palette.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  palette.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - 360)}px`;
+  palette.style.display = 'grid';
+}
+
+function selectCharFromPalette(charId) {
+  if (!activeCharTargetInput) return;
+  activeCharTargetInput.value = charId;
+  
+  const charInfo = allCharacters.find(c => c.id === charId);
+  const btn = activeCharTargetInput.nextElementSibling;
+  btn.querySelector('img').src = charInfo ? charInfo.icon : '';
+  btn.querySelector('span').textContent = charInfo ? charInfo.name : '選択...';
+
+  document.getElementById('charPalette').style.display = 'none';
 }
 
 function setDeviceRole(role) {
@@ -439,6 +554,17 @@ function openOrderModal(teamKey) {
   renderModalRows(members, current16);
   updateModalLabels();
   document.getElementById("orderModal").style.display = "flex";
+
+  // ドラッグ＆ドロップの初期化
+  const el = document.getElementById('modalOrderRows');
+  if (sortableInstance) sortableInstance.destroy();
+  sortableInstance = new Sortable(el, {
+    handle: '.drag-handle',
+    animation: 150,
+    onEnd: function() {
+      updateModalLabels(); // 並び替え後に番号ラベルを再計算
+    }
+  });
 }
 
 function renderModalRows(members, orders) {
@@ -453,14 +579,18 @@ function renderModalRows(members, orders) {
       `<option value="${escapeHTML(p)}" ${p === slot.name ? 'selected' : ''}>${escapeHTML(p)}</option>`
     ).join("");
 
-    let charOptions = `<option value="">-- キャラ --</option>` + allCharacters.map(c => 
-      `<option value="${c.id}" ${c.id === slot.charId ? 'selected' : ''}>${c.name}</option>`
-    ).join("");
+    const charInfo = allCharacters.find(c => c.id === slot.charId);
 
     row.innerHTML = `
-      <span class="slot-label" style="width:140px;"><b>${idx + 1}人目:</b></span>
+      <span class="drag-handle">☰</span>
+      <span class="slot-label" style="width:130px; font-size:0.9em;"><b>${idx + 1}人目:</b></span>
       <select class="m-name" style="flex:1;">${nameOptions}</select>
-      <select class="m-char" style="flex:1;">${charOptions}</select>
+      
+      <input type="hidden" class="m-char" id="char_input_${idx}" value="${slot.charId || ''}">
+      <div class="char-picker-btn" onclick="openCharPalette(event, 'char_input_${idx}')">
+        <img class="char-face" src="${charInfo ? charInfo.icon : ''}" onerror="this.src=''">
+        <span style="font-size:0.85em; flex:1;">${charInfo ? charInfo.name : 'キャラ選択...'}</span>
+      </div>
     `;
     container.appendChild(row);
   });
@@ -483,14 +613,12 @@ function updateModalLabels() {
   });
 }
 
-// 🎲 完全全ランダム自動割り当て機能 (キャラ16種完全被りなし修正版)
 function fillFullRandomModal() {
   const members = (currentModalTeam === '1') ? appState.team1Members : appState.team2Members;
   if (!members || members.length === 0) return;
 
   const rows = document.querySelectorAll("#modalOrderRows .order-row");
   
-  // 1. プレイヤー（人数不足分は重複して16枠を埋める）
   let playerPool = [];
   while (playerPool.length < 16) {
     let shuffledMembers = [...members].sort(() => Math.random() - 0.5);
@@ -498,15 +626,18 @@ function fillFullRandomModal() {
   }
   playerPool = playerPool.slice(0, 16);
 
-  // 2. キャラクター（全16キャラを重複なしでランダムシャッフル）
   let shuffledChars = [...allCharacters].sort(() => Math.random() - 0.5);
 
   rows.forEach((row, idx) => {
-    const nameSelect = row.querySelector(".m-name");
-    const charSelect = row.querySelector(".m-char");
+    row.querySelector(".m-name").value = playerPool[idx];
+    
+    const charInput = row.querySelector(".m-char");
+    const charBtn = row.querySelector(".char-picker-btn");
+    const chosenChar = shuffledChars[idx];
 
-    nameSelect.value = playerPool[idx];
-    charSelect.value = shuffledChars[idx].id; // 被りなしで割当
+    charInput.value = chosenChar.id;
+    charBtn.querySelector('img').src = chosenChar.icon;
+    charBtn.querySelector('span').textContent = chosenChar.name;
   });
 }
 
