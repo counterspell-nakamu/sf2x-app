@@ -33,8 +33,37 @@
     background: var(--panel-bg);
     border: 1px solid #333;
     border-radius: 8px;
-    padding: 12px;
     margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  /* ヘッダー全体の横並びレイアウト設定 */
+  .admin-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #20202d;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    font-size: 1.1em;
+  }
+  .admin-summary:hover {
+    background: #282838;
+  }
+
+  .admin-body {
+    padding: 12px;
+  }
+
+  /* ヘッダー右側のルーム操作エリア */
+  .room-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+    font-weight: normal;
   }
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -282,20 +311,18 @@
 
   <div class="admin-panel">
     <details open>
-      <summary>⚙️ 管理操作パネル</summary>
-      <div style="margin-top: 10px;">
-        
-        <!-- ルーム情報表示＆切り替え機能 -->
-        <div style="background:#252538; padding:8px 12px; border-radius:6px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-          <div>
-            <b>🏠 現在のルーム:</b> <span id="currentRoomDisplay" style="color:#ff9f1c; font-weight:bold; font-size:1.1em;">default</span>
-          </div>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <input type="text" id="roomInput" placeholder="部屋名を入力 (例: tokyo)" style="width:180px; padding:4px 8px;">
-            <button class="btn btn-warning" onclick="changeRoom()">部屋移動</button>
-          </div>
-        </div>
+      <summary class="admin-summary">
+        <span>▼ ⚙️ 管理操作パネル</span>
 
+        <!-- 一番右上（ヘッダー内）へ移動したルーム表示＆切り替え機能 -->
+        <div class="room-header-controls" onclick="event.stopPropagation();">
+          <span>🏠 現在のルーム: <strong id="currentRoomDisplay" style="color:#ff9f1c; font-size:1.1em;">default</strong></span>
+          <input type="text" id="roomInput" placeholder="部屋名" style="width:140px; padding:3px 6px;">
+          <button class="btn btn-warning" style="padding:4px 10px;" onclick="changeRoom()">部屋移動</button>
+        </div>
+      </summary>
+
+      <div class="admin-body">
         <div class="mode-select" style="background:#20202d; margin-bottom:12px;">
           <b>📱 端末別入力モード設定:</b><br>
           <label><input type="radio" name="deviceRole" value="pc_all" checked onclick="setDeviceRole('pc_all')"> 💻 PC1台で両チーム分を入力する</label><br>
